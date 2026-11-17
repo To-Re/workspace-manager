@@ -3,7 +3,7 @@
   "displayName": "Workspace Shelf 工作区管理",
   "description": "一键保存当前窗口的文件、文件夹和工作区设置，命名并快速切换。",
   "publisher": "to-re",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "engines": {
     "vscode": "^1.107.0"
@@ -23,7 +23,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.2.0.vsix"
+    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.2.1.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "3.7.1"
@@ -32,38 +32,52 @@
     "commands": [
       {
         "command": "workspaceShelf.save",
-        "title": "工作区管理：保存当前窗口",
-        "icon": "$(save)"
+        "title": "保存当前窗口：保存打开的文件、文件夹和工作区设置，无需另存为",
+        "icon": "$(save)",
+        "category": "工作区管理",
+        "shortTitle": "保存当前窗口"
       },
       {
         "command": "workspaceShelf.pick",
-        "title": "工作区管理：搜索工作区",
-        "icon": "$(search)"
+        "title": "搜索工作区：按名称、主机或路径查找已保存的工作区",
+        "icon": "$(search)",
+        "category": "工作区管理",
+        "shortTitle": "搜索工作区"
       },
       {
         "command": "workspaceShelf.refresh",
-        "title": "工作区管理：刷新",
-        "icon": "$(refresh)"
+        "title": "刷新列表：读取其他窗口保存或修改的工作区",
+        "icon": "$(refresh)",
+        "category": "工作区管理",
+        "shortTitle": "刷新列表"
       },
       {
         "command": "workspaceShelf.open",
-        "title": "工作区管理：在新窗口打开",
-        "icon": "$(go-to-file)"
+        "title": "新窗口打开：保留当前窗口，打开此工作区并恢复文件标签",
+        "icon": "$(go-to-file)",
+        "category": "工作区管理",
+        "shortTitle": "新窗口打开"
       },
       {
         "command": "workspaceShelf.reuse",
-        "title": "工作区管理：在当前窗口打开",
-        "icon": "$(window)"
+        "title": "当前窗口打开：在当前窗口切换到此工作区",
+        "icon": "$(window)",
+        "category": "工作区管理",
+        "shortTitle": "当前窗口打开"
       },
       {
         "command": "workspaceShelf.rename",
-        "title": "工作区管理：修改显示名称",
-        "icon": "$(edit)"
+        "title": "重命名：修改列表名称，下次打开时使用新的工作区名称",
+        "icon": "$(edit)",
+        "category": "工作区管理",
+        "shortTitle": "重命名"
       },
       {
         "command": "workspaceShelf.remove",
-        "title": "工作区管理：从列表移除",
-        "icon": "$(close)"
+        "title": "从列表移除：可撤销，不删除项目文件",
+        "icon": "$(close)",
+        "category": "工作区管理",
+        "shortTitle": "从列表移除"
       }
     ],
     "viewsContainers": {

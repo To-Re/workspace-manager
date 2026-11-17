@@ -1,6 +1,5 @@
 'use strict';
 const vscode = require('vscode');
-const path = require('node:path');
 const { Store } = require('./store');
 const { writeManaged, readManaged } = require('./managed');
 const { captureWindow, restoreEditors } = require('./window');
@@ -53,7 +52,7 @@ function activate(context) {
   let lastSource;
   let saving = false;
   async function saveWindow() {
-    if (saving) return;
+    if (saving) { vscode.window.showInformationMessage('正在保存当前窗口，请稍候。'); return; }
     saving = true;
     try {
       const captured = await captureWindow(vscode, store.dir);
@@ -103,7 +102,9 @@ function activate(context) {
       await store.change(rows => { if (!rows.some(e => e.uri === entry.uri)) rows.push(entry); }); refresh();
     }
   });
-  context.subscriptions.push(event, vscode.window.createTreeView('workspaceShelf.list', { treeDataProvider: provider }),
+  const view = vscode.window.createTreeView('workspaceShelf.list', { treeDataProvider: provider });
+  view.description = 'v' + context.extension.packageJSON.version;
+  context.subscriptions.push(event, view,
     vscode.window.onDidChangeWindowState(e => { if (e.focused) refresh(); }));
   const ready = (async () => {
     const current = vscode.workspace.workspaceFile;

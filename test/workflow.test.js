@@ -20,7 +20,7 @@ test('one save command captures untitled workspace; rename updates durable bookm
   commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return {dispose(){}}},executeCommand:()=>{throw Error('Save must not require a native dialog or switch windows');}}};
  const previous=Module._load;Module._load=function(id,...args){return id==='vscode'?mock:previous.call(this,id,...args)};
  delete require.cache[require.resolve('../src/extension')];let extension;try{extension=require('../src/extension')}finally{Module._load=previous}
- const storage=path.join(dir,'User','globalStorage','to-re.workspace-manager');extension.activate({globalStorageUri:{fsPath:storage},subscriptions:[]});
+ const storage=path.join(dir,'User','globalStorage','to-re.workspace-manager');extension.activate({extension:{packageJSON:{version:'test'}},globalStorageUri:{fsPath:storage},subscriptions:[]});
  await commands.get('workspaceShelf.save')();assert.equal(inputCount,0);assert.deepEqual(errors,[]);
  const store=new Store(storage);let entries=(await store.read()).entries;assert.equal(entries.length,1);assert.equal(entries[0].managed,true);
  const firstFile=fileURLToPath(entries[0].uri);const data=JSON.parse(await fs.readFile(firstFile,'utf8'));assert.equal(data.settings['editor.tabSize'],8);assert.ok(data.tasks);assert.equal(data.folders[1].uri,folders[1].uri.toString());
