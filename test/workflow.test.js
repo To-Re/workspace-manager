@@ -13,11 +13,11 @@ test('one save command captures untitled workspace; rename updates durable bookm
  await fs.writeFile(path.join(backing,'workspace.json'),'{"folders":[],"settings":{"editor.tabSize":8},"tasks":{"version":"2.0.0","tasks":[]}}');
  const commands=new Map(),errors=[];let input='我的工作区';let inputCount=0;
  const folders=[{name:'a',uri:uri('file:///example/a')},{name:'b',uri:uri('vscode-remote://ssh-remote+example/home/b')}];
- const mock={Uri:{parse:uri,file:p=>uri(pathToFileURL(p).href),joinPath:(u,p)=>uri(pathToFileURL(path.join(u.fsPath,p)).href)},
+ const mock={ConfigurationTarget:{Workspace:2},Uri:{parse:uri,file:p=>uri(pathToFileURL(p).href),joinPath:(u,p)=>uri(pathToFileURL(path.join(u.fsPath,p)).href)},
   EventEmitter:class{event=()=>{};fire(){};dispose(){}},
-  workspace:{workspaceFile:uri('untitled:/sample'),workspaceFolders:folders,textDocuments:[],fs:{readFile:u=>fs.readFile(u.fsPath)}},
+  workspace:{getConfiguration:()=>({inspect:()=>({}),update:async()=>{}}),workspaceFile:uri('untitled:/sample'),workspaceFolders:folders,textDocuments:[],fs:{readFile:u=>fs.readFile(u.fsPath)}},
   window:{tabGroups:{all:[]},showInputBox:async()=>{inputCount++;return input;},showInformationMessage:async()=>undefined,showErrorMessage:m=>errors.push(m),createTreeView:()=>({dispose(){}}),onDidChangeWindowState:()=>({dispose(){}})},
-  commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return {dispose(){}}},executeCommand:()=>{throw Error('Save must not require a native dialog or switch windows');}}};
+  commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return {dispose(){}}},executeCommand:async(id,target,options)=>{assert.equal(id,'vscode.openFolder');assert.equal(options.forceReuseWindow,true);await fs.stat(target.fsPath);}}};
  const previous=Module._load;Module._load=function(id,...args){return id==='vscode'?mock:previous.call(this,id,...args)};
  delete require.cache[require.resolve('../src/extension')];let extension;try{extension=require('../src/extension')}finally{Module._load=previous}
  const storage=path.join(dir,'User','globalStorage','to-re.workspace-manager');extension.activate({extension:{packageJSON:{version:'test'}},globalStorageUri:{fsPath:storage},subscriptions:[]});

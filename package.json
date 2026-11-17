@@ -3,7 +3,7 @@
   "displayName": "Workspace Shelf 工作区管理",
   "description": "一键保存当前窗口的文件、文件夹和工作区设置，命名并快速切换。",
   "publisher": "to-re",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.107.0"
@@ -23,7 +23,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.2.1.vsix"
+    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.2.2.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "3.7.1"

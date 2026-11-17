@@ -3,6 +3,7 @@ const vscode = require('vscode');
 const { Store } = require('./store');
 const { writeManaged, readManaged } = require('./managed');
 const { captureWindow, restoreEditors } = require('./window');
+const { adoptUntitled } = require('./adopt');
 function activate(context) {
   const store = new Store(context.globalStorageUri.fsPath);
   const event = new vscode.EventEmitter();
@@ -56,16 +57,19 @@ function activate(context) {
     saving = true;
     try {
       const captured = await captureWindow(vscode, store.dir);
+      let savedUri;
       await store.change(async rows => {
         const currentUri = vscode.workspace.workspaceFile?.toString();
         const old = rows.find(e => e.uri === currentUri || e.source === captured.source || (lastSource && e.source === lastSource));
         const name = old?.name || captured.name;
         const file = await writeManaged(store.dir, name, captured.data);
         const entry = { uri: vscode.Uri.file(file).toString(), name, kind: 'workspace', managed: true, source: old?.source || captured.source };
+        savedUri = vscode.Uri.parse(entry.uri);
         if (old) rows[rows.indexOf(old)] = entry; else rows.push(entry);
         lastSource = entry.source;
       });
       refresh();
+      await adoptUntitled(vscode, savedUri);
       vscode.window.showInformationMessage('当前窗口已保存，可点铅笔改名。');
     } finally { saving = false; }
   }
