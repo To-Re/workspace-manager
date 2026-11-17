@@ -1,0 +1,11 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const Module = require('node:module');
+const old = Module._load;
+Module._load = function(id,...args) { return id === 'vscode' ? {} : old.call(this,id,...args); };
+const { currentTarget } = require('../src/extension');
+Module._load = old;
+test('saved workspace takes priority over its folder list', () => { const uri = {scheme:'file',path:'/example/dev.code-workspace'}; assert.deepEqual(currentTarget({workspaceFile:uri,workspaceFolders:[{uri:{}}]}),{uri,kind:'workspace'}); });
+test('unsaved multi-root workspace requires native save', () => { assert.throws(() => currentTarget({workspaceFile:{scheme:'untitled'}}),/另存为/); });
+test('remote folder keeps authority and path intact', () => { const uri = {scheme:'vscode-remote',authority:'ssh-remote+example',path:'/home/project'}; assert.equal(currentTarget({workspaceFolders:[{uri}]}).uri,uri); });
+test('empty and invalid multi-folder states are rejected', () => { assert.throws(() => currentTarget({})); assert.throws(() => currentTarget({workspaceFolders:[{},{}]})); });

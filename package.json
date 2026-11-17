@@ -1,0 +1,149 @@
+{
+  "name": "workspace-manager",
+  "displayName": "Workspace Shelf 工作区管理",
+  "description": "收藏、命名和切换本地及 SSH 工作区，重启后保留列表。",
+  "publisher": "to-re",
+  "version": "0.1.0",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./src/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": false
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "package": "vsce package --no-dependencies --allow-missing-repository --out artifacts/workspace-manager-0.1.0.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "3.7.1"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "workspaceShelf.save",
+        "title": "工作区管理：收藏当前工作区",
+        "icon": "$(add)"
+      },
+      {
+        "command": "workspaceShelf.pick",
+        "title": "工作区管理：搜索工作区",
+        "icon": "$(search)"
+      },
+      {
+        "command": "workspaceShelf.import",
+        "title": "工作区管理：添加已有工作区文件",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "workspaceShelf.refresh",
+        "title": "工作区管理：刷新",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "workspaceShelf.open",
+        "title": "工作区管理：在新窗口打开",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "workspaceShelf.reuse",
+        "title": "工作区管理：在当前窗口打开",
+        "icon": "$(window)"
+      },
+      {
+        "command": "workspaceShelf.rename",
+        "title": "工作区管理：修改显示名称",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "workspaceShelf.remove",
+        "title": "工作区管理：从列表移除",
+        "icon": "$(close)"
+      },
+      {
+        "command": "workspaceShelf.saveAs",
+        "title": "工作区管理：将当前工作区另存为…",
+        "icon": "$(save)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "workspaceShelf",
+          "title": "工作区管理",
+          "icon": "media/workspaces.svg"
+        }
+      ]
+    },
+    "views": {
+      "workspaceShelf": [
+        {
+          "id": "workspaceShelf.list",
+          "name": "已收藏的工作区"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "workspaceShelf.list",
+        "contents": "收藏常用项目，下次直接打开。\n[收藏当前工作区](command:workspaceShelf.save)\n[添加已有工作区文件](command:workspaceShelf.import)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "workspaceShelf.save",
+          "when": "view == workspaceShelf.list",
+          "group": "navigation@0"
+        },
+        {
+          "command": "workspaceShelf.pick",
+          "when": "view == workspaceShelf.list",
+          "group": "navigation@1"
+        },
+        {
+          "command": "workspaceShelf.import",
+          "when": "view == workspaceShelf.list",
+          "group": "navigation@2"
+        },
+        {
+          "command": "workspaceShelf.refresh",
+          "when": "view == workspaceShelf.list",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "workspaceShelf.open",
+          "when": "view == workspaceShelf.list && viewItem == savedWorkspace",
+          "group": "inline"
+        },
+        {
+          "command": "workspaceShelf.reuse",
+          "when": "view == workspaceShelf.list && viewItem == savedWorkspace",
+          "group": "manage@1"
+        },
+        {
+          "command": "workspaceShelf.rename",
+          "when": "view == workspaceShelf.list && viewItem == savedWorkspace",
+          "group": "manage@2"
+        },
+        {
+          "command": "workspaceShelf.remove",
+          "when": "view == workspaceShelf.list && viewItem == savedWorkspace",
+          "group": "manage@3"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/**
+test/**
+.vscode/**
+artifacts/**
+.gitignore
+package-lock.json
+AGENTS.md
+VALIDATION.md
