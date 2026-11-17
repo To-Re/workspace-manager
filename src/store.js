@@ -32,7 +32,7 @@ class Store {
     const tmp = this.file + '.' + randomUUID() + '.tmp';
     try {
       const data = await this.read();
-      edit(data.entries);
+      await edit(data.entries);
       validate(data);
       await fs.writeFile(tmp, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
       await fs.rename(tmp, this.file);

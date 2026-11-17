@@ -3,7 +3,7 @@
   "displayName": "Workspace Shelf 工作区管理",
   "description": "收藏、命名和切换本地及 SSH 工作区，重启后保留列表。",
   "publisher": "to-re",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "engines": {
     "vscode": "^1.107.0"
@@ -23,7 +23,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "package": "vsce package --no-dependencies --allow-missing-repository --out artifacts/workspace-manager-0.1.0.vsix"
+    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.1.1.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "3.7.1"
@@ -136,7 +136,7 @@
         {
           "command": "workspaceShelf.rename",
           "when": "view == workspaceShelf.list && viewItem == savedWorkspace",
-          "group": "manage@2"
+          "group": "inline@2"
         },
         {
           "command": "workspaceShelf.remove",
@@ -145,5 +145,8 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1"
   }
 }

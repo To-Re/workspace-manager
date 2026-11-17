@@ -2,9 +2,10 @@
 const vscode = require('vscode');
 const path = require('node:path');
 const { Store } = require('./store');
+const { snapshot, writeManaged, readManaged, untitledSource } = require('./managed');
 function currentTarget(workspace) {
   if (workspace.workspaceFile) {
-    if (workspace.workspaceFile.scheme === 'untitled') throw Error('请先使用“将当前工作区另存为”，再收藏，以保留多文件夹和工作区设置。');
+    if (workspace.workspaceFile.scheme === 'untitled') return { uri: workspace.workspaceFile, kind: 'workspace', needsSave: true };
     return { uri: workspace.workspaceFile, kind: 'workspace' };
   }
   const folders = workspace.workspaceFolders || [];
@@ -58,10 +59,26 @@ function activate(context) {
     await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: newWindow, forceReuseWindow: !newWindow });
   };
   async function save(target) {
-    if (!['file','vscode-remote'].includes(target.uri.scheme)) throw Error('目前只支持本地与远程开发工作区。');
-    const name = await vscode.window.showInputBox({ title: '收藏工作区', prompt: '显示名称（不会重命名文件夹）', value: path.posix.basename(target.uri.path).replace(/\.code-workspace$/, ''), validateInput: v => v.trim() ? null : '请输入名称' });
+    if (!target.needsSave && !['file','vscode-remote'].includes(target.uri.scheme)) throw Error('目前只支持本地与远程开发工作区。');
+    const name = await vscode.window.showInputBox({ title: '收藏工作区', prompt: '显示名称（不会重命名文件夹）', value: target.needsSave ? '我的工作区' : path.posix.basename(target.uri.path).replace(/\.code-workspace$/, ''), validateInput: v => v.trim() ? null : '请输入名称' });
     if (!name?.trim()) return;
-    await store.save({ uri: target.uri.toString(), kind: target.kind, name: name.trim() });
+    let entry = { uri: target.uri.toString(), kind: target.kind, name: name.trim() };
+    if (target.needsSave) {
+      // Desktop VS Code exposes the untitled workspace ID; locate it under this profile's user-data root.
+      // Read the existing JSONC rather than reconstructing settings (which would lose tasks/launch).
+      const source = vscode.Uri.file(untitledSource(store.dir, target.uri.path));
+      let text;
+      const document = vscode.workspace.textDocuments.find(d => d.uri.toString() === source.toString());
+      try { text = document ? document.getText() : Buffer.from(await vscode.workspace.fs.readFile(source)).toString('utf8'); }
+      catch { throw Error('无法读取当前工作区配置，未保存收藏。请重试；若仍失败，可使用“将当前工作区另存为”。'); }
+      const data = snapshot(text, vscode.workspace.workspaceFolders || []);
+      const file = await writeManaged(store.dir, entry.name, data);
+      entry = { ...entry, uri: vscode.Uri.file(file).toString(), managed: true, source: target.uri.toString() };
+      await store.change(rows => { const index = rows.findIndex(e => e.source === entry.source); if (index < 0) rows.push(entry); else rows[index] = entry; });
+    } else {
+      // Re-collecting a managed workspace must retain its management metadata.
+      await store.change(rows => { const i = rows.findIndex(e => e.uri === entry.uri); if (i < 0) rows.push(entry); else rows[i] = { ...rows[i], ...entry }; });
+    }
     refresh();
     vscode.window.showInformationMessage('已收藏，关闭窗口或重启后仍会保留。');
   }
@@ -78,12 +95,24 @@ function activate(context) {
   register('rename', async entry => {
     entry ||= await choose(); if (!entry) return;
     const name = await vscode.window.showInputBox({ title: '修改显示名称', value: entry.name, validateInput: v => v.trim() ? null : '请输入名称' });
-    if (name?.trim()) { await store.rename(entry.uri, name.trim()); refresh(); }
+    if (name?.trim()) {
+      await store.change(async rows => {
+        const saved = rows.find(e => e.uri === entry.uri);
+        if (!saved) throw Error('记录已移除，请刷新。');
+        if (saved.managed) {
+          const data = await readManaged(store.dir, vscode.Uri.parse(saved.uri).fsPath);
+          const file = await writeManaged(store.dir, name.trim(), data);
+          saved.uri = vscode.Uri.file(file).toString();
+        }
+        saved.name = name.trim();
+      });
+      refresh();
+    }
   });
   register('remove', async entry => {
     entry ||= await choose(); if (!entry) return;
     await store.remove(entry.uri); refresh();
-    if (await vscode.window.showInformationMessage('已从列表移除，项目文件保持不变。', '撤销') === '撤销') {
+    if (await vscode.window.showInformationMessage('已删除工作区收藏，磁盘上的项目文件未删除。', '撤销') === '撤销') {
       // Do not overwrite a newer entry created in another window.
       await store.change(rows => { if (!rows.some(e => e.uri === entry.uri)) rows.push(entry); }); refresh();
     }
