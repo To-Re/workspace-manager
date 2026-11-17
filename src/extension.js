@@ -2,16 +2,8 @@
 const vscode = require('vscode');
 const path = require('node:path');
 const { Store } = require('./store');
-const { snapshot, writeManaged, readManaged, untitledSource } = require('./managed');
-function currentTarget(workspace) {
-  if (workspace.workspaceFile) {
-    if (workspace.workspaceFile.scheme === 'untitled') return { uri: workspace.workspaceFile, kind: 'workspace', needsSave: true };
-    return { uri: workspace.workspaceFile, kind: 'workspace' };
-  }
-  const folders = workspace.workspaceFolders || [];
-  if (folders.length !== 1) throw Error('请先打开项目文件夹或已保存的工作区。');
-  return { uri: folders[0].uri, kind: 'folder' };
-}
+const { writeManaged, readManaged } = require('./managed');
+const { captureWindow, restoreEditors } = require('./window');
 function activate(context) {
   const store = new Store(context.globalStorageUri.fsPath);
   const event = new vscode.EventEmitter();
@@ -41,7 +33,7 @@ function activate(context) {
   }));
   const choose = async () => {
     const rows = (await store.read()).entries;
-    if (!rows.length) { vscode.window.showInformationMessage('还没有收藏的工作区。先打开项目，再点“收藏当前工作区”。'); return; }
+    if (!rows.length) { vscode.window.showInformationMessage('还没有保存的工作区。点击“保存当前窗口”即可。'); return; }
     const choice = await vscode.window.showQuickPick(rows.map(e => ({ label: e.name, description: vscode.Uri.parse(e.uri).authority || '本机', detail: e.uri, entry: e })), { placeHolder: '搜索名称、主机或路径', matchOnDescription: true, matchOnDetail: true });
     return choice?.entry;
   };
@@ -58,36 +50,30 @@ function activate(context) {
     }
     await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: newWindow, forceReuseWindow: !newWindow });
   };
-  async function save(target) {
-    if (!target.needsSave && !['file','vscode-remote'].includes(target.uri.scheme)) throw Error('目前只支持本地与远程开发工作区。');
-    const name = await vscode.window.showInputBox({ title: '收藏工作区', prompt: '显示名称（不会重命名文件夹）', value: target.needsSave ? '我的工作区' : path.posix.basename(target.uri.path).replace(/\.code-workspace$/, ''), validateInput: v => v.trim() ? null : '请输入名称' });
-    if (!name?.trim()) return;
-    let entry = { uri: target.uri.toString(), kind: target.kind, name: name.trim() };
-    if (target.needsSave) {
-      // Desktop VS Code exposes the untitled workspace ID; locate it under this profile's user-data root.
-      // Read the existing JSONC rather than reconstructing settings (which would lose tasks/launch).
-      const source = vscode.Uri.file(untitledSource(store.dir, target.uri.path));
-      let text;
-      const document = vscode.workspace.textDocuments.find(d => d.uri.toString() === source.toString());
-      try { text = document ? document.getText() : Buffer.from(await vscode.workspace.fs.readFile(source)).toString('utf8'); }
-      catch { throw Error('无法读取当前工作区配置，未保存收藏。请重试；若仍失败，可使用“将当前工作区另存为”。'); }
-      const data = snapshot(text, vscode.workspace.workspaceFolders || []);
-      const file = await writeManaged(store.dir, entry.name, data);
-      entry = { ...entry, uri: vscode.Uri.file(file).toString(), managed: true, source: target.uri.toString() };
-      await store.change(rows => { const index = rows.findIndex(e => e.source === entry.source); if (index < 0) rows.push(entry); else rows[index] = entry; });
-    } else {
-      // Re-collecting a managed workspace must retain its management metadata.
-      await store.change(rows => { const i = rows.findIndex(e => e.uri === entry.uri); if (i < 0) rows.push(entry); else rows[i] = { ...rows[i], ...entry }; });
-    }
-    refresh();
-    vscode.window.showInformationMessage('已收藏，关闭窗口或重启后仍会保留。');
+  let lastSource;
+  let saving = false;
+  async function saveWindow() {
+    if (saving) return;
+    saving = true;
+    try {
+      const captured = await captureWindow(vscode, store.dir);
+      await store.change(async rows => {
+        const currentUri = vscode.workspace.workspaceFile?.toString();
+        const old = rows.find(e => e.uri === currentUri || e.source === captured.source || (lastSource && e.source === lastSource));
+        const name = old?.name || captured.name;
+        const file = await writeManaged(store.dir, name, captured.data);
+        const entry = { uri: vscode.Uri.file(file).toString(), name, kind: 'workspace', managed: true, source: old?.source || captured.source };
+        if (old) rows[rows.indexOf(old)] = entry; else rows.push(entry);
+        lastSource = entry.source;
+      });
+      refresh();
+      vscode.window.showInformationMessage('当前窗口已保存，可点铅笔改名。');
+    } finally { saving = false; }
   }
-  register('save', () => save(currentTarget(vscode.workspace)));
-  register('saveAs', () => vscode.commands.executeCommand('workbench.action.saveWorkspaceAs'));
-  register('import', async () => {
-    const uris = await vscode.window.showOpenDialog({ canSelectMany: false, canSelectFolders: false, filters: { 'VS Code 工作区': ['code-workspace'] }, title: '添加已有工作区文件' });
-    if (uris?.[0]) await save({ uri: uris[0], kind: 'workspace' });
-  });
+  register('save', saveWindow);
+  // Legacy command IDs lead to the same one-click flow; no native Save As dialog.
+  register('saveAs', saveWindow);
+  register('import', saveWindow);
   register('open', e => open(e, true));
   register('reuse', e => open(e, false));
   register('pick', () => open(undefined, true));
@@ -112,12 +98,23 @@ function activate(context) {
   register('remove', async entry => {
     entry ||= await choose(); if (!entry) return;
     await store.remove(entry.uri); refresh();
-    if (await vscode.window.showInformationMessage('已删除工作区收藏，磁盘上的项目文件未删除。', '撤销') === '撤销') {
+    if (await vscode.window.showInformationMessage('已从工作区列表删除，原项目文件未删除。', '撤销') === '撤销') {
       // Do not overwrite a newer entry created in another window.
       await store.change(rows => { if (!rows.some(e => e.uri === entry.uri)) rows.push(entry); }); refresh();
     }
   });
   context.subscriptions.push(event, vscode.window.createTreeView('workspaceShelf.list', { treeDataProvider: provider }),
     vscode.window.onDidChangeWindowState(e => { if (e.focused) refresh(); }));
+  const ready = (async () => {
+    const current = vscode.workspace.workspaceFile;
+    if (!current || current.scheme !== 'file') return;
+    const entry = (await store.read()).entries.find(e => e.managed && e.uri === current.toString());
+    if (!entry) return;
+    lastSource = entry.source;
+    const data = await readManaged(store.dir, current.fsPath);
+    await restoreEditors(vscode, data.workspaceShelf?.editors);
+  })().catch(notify);
+  return { ready };
+
 }
-module.exports = { activate, currentTarget };
+module.exports = { activate };

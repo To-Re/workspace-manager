@@ -1,9 +1,9 @@
 {
   "name": "workspace-manager",
   "displayName": "Workspace Shelf 工作区管理",
-  "description": "收藏、命名和切换本地及 SSH 工作区，重启后保留列表。",
+  "description": "一键保存当前窗口的文件、文件夹和工作区设置，命名并快速切换。",
   "publisher": "to-re",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.107.0"
@@ -23,7 +23,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.1.1.vsix"
+    "package": "vsce package --allow-missing-repository --out artifacts/workspace-manager-0.2.0.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "3.7.1"
@@ -32,18 +32,13 @@
     "commands": [
       {
         "command": "workspaceShelf.save",
-        "title": "工作区管理：收藏当前工作区",
-        "icon": "$(add)"
+        "title": "工作区管理：保存当前窗口",
+        "icon": "$(save)"
       },
       {
         "command": "workspaceShelf.pick",
         "title": "工作区管理：搜索工作区",
         "icon": "$(search)"
-      },
-      {
-        "command": "workspaceShelf.import",
-        "title": "工作区管理：添加已有工作区文件",
-        "icon": "$(folder-opened)"
       },
       {
         "command": "workspaceShelf.refresh",
@@ -69,11 +64,6 @@
         "command": "workspaceShelf.remove",
         "title": "工作区管理：从列表移除",
         "icon": "$(close)"
-      },
-      {
-        "command": "workspaceShelf.saveAs",
-        "title": "工作区管理：将当前工作区另存为…",
-        "icon": "$(save)"
       }
     ],
     "viewsContainers": {
@@ -89,14 +79,14 @@
       "workspaceShelf": [
         {
           "id": "workspaceShelf.list",
-          "name": "已收藏的工作区"
+          "name": "工作区"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "workspaceShelf.list",
-        "contents": "收藏常用项目，下次直接打开。\n[收藏当前工作区](command:workspaceShelf.save)\n[添加已有工作区文件](command:workspaceShelf.import)"
+        "contents": "保存当前窗口的文件和文件夹，下次一键打开。\n[保存当前窗口](command:workspaceShelf.save)"
       }
     ],
     "menus": {
@@ -109,17 +99,12 @@
         {
           "command": "workspaceShelf.pick",
           "when": "view == workspaceShelf.list",
-          "group": "navigation@1"
-        },
-        {
-          "command": "workspaceShelf.import",
-          "when": "view == workspaceShelf.list",
-          "group": "navigation@2"
+          "group": "tools"
         },
         {
           "command": "workspaceShelf.refresh",
           "when": "view == workspaceShelf.list",
-          "group": "navigation@3"
+          "group": "tools"
         }
       ],
       "view/item/context": [
@@ -148,5 +133,8 @@
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1"
-  }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ]
 }
